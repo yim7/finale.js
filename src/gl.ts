@@ -22,7 +22,7 @@ enum TokenType {
     operator = 'operator',
     comma = ',',
     colon = ':',
-    dot = ':',
+    dot = '.',
 }
 
 enum OperatorType {
@@ -55,6 +55,7 @@ enum KeywordType {
     return = 'return',
     true = 'true',
     false = 'false',
+    null = 'null',
 }
 
 class Token {
@@ -129,11 +130,11 @@ function isDigit(c: string) {
 }
 
 function isLetter(c: string) {
-    return 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'.includes(c)
+    return '_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'.includes(c)
 }
 
 function isAuto(c: string) {
-    return '{}[]()'.includes(c)
+    return '{}[](),:.'.includes(c)
 }
 
 function isOperator(c: string) {
@@ -151,6 +152,7 @@ function getkeywordType(s: string): KeywordType | null {
         'return': KeywordType.return,
         'true': KeywordType.true,
         'false': KeywordType.false,
+        'null': KeywordType.null,
     }
 
     return keywords[s]
@@ -172,6 +174,8 @@ class Tokenizer {
             let c = code[i]
             if (isSpace(c)) {
                 // skip white space
+            } else if (c == '/' && code[i + 1] == '/') {
+                this.readComment()
             } else if (isOperator(c)) {
                 if (code[i + 1] == '=') {
                     let op = code.substr(i, 2)
@@ -202,7 +206,7 @@ class Tokenizer {
                     ts.push(t)
                 }
 
-            } else if (c == '"') {
+            } else if (c == '"' || c == '\'') {
                 let e = this.readString()
                 let length = this.index - i + 1
                 let t = new StringToken(e, i, length)
@@ -216,15 +220,31 @@ class Tokenizer {
         return ts
     }
 
+    readComment() {
+        let code = this.code
+        let start = this.index + 2
+        let i = start
+        while (true) {
+            let c = code[i]
+            if (c == '\n' || i >= code.length) {
+                let s = code.slice(start, i)
+                // log('read coment:', s)
+                this.index = i
+                return s
+            }
+            i += 1
+        }
+    }
+
     readNumber() {
         let code = this.code
         let start = this.index
         let i = start
         while (true) {
             let c = code[i]
-            if (!isDigit(c)) {
+            if (!isDigit(c) || i >= code.length) {
                 let n = code.slice(start, i)
-                log('read number:', n)
+                // log('read number:', n)
                 this.index = i - 1
                 return parseInt(n)
             }
@@ -238,9 +258,9 @@ class Tokenizer {
         let i = start
         while (true) {
             let c = code[i]
-            if (!isLetter(c)) {
+            if (!isLetter(c) && !isDigit(c) || i >= code.length) {
                 let n = code.slice(start, i)
-                log('read name:', n)
+                // log('read name:', n)
                 this.index = i - 1
                 return n
             }
@@ -250,14 +270,15 @@ class Tokenizer {
 
     readString() {
         let code = this.code
+        let quote = code[this.index]
         // 跳过开始的单引号
         let start = this.index + 1
         let i = start
         while (true) {
             let c = code[i]
-            if (c == '"') {
+            if (c == quote || i >= code.length) {
                 let s = code.slice(start, i)
-                log('read string:', s)
+                // log('read string:', s)
                 this.index = i
                 return s
             }
@@ -266,7 +287,7 @@ class Tokenizer {
     }
 }
 
-class ElseIfNode {
+class IfBranch {
     test: Expr
     block: BlockNode
     constructor(test: Expr, block: BlockNode) {
@@ -276,14 +297,10 @@ class ElseIfNode {
 }
 
 class IfNode {
-    test: Expr
-    ifBlock: BlockNode
-    elseIfBlocks?: ElseIfNode[]
+    ifBranches: IfBranch[]
     elseBlock?: BlockNode
-    constructor(test: Expr, ifBlock: BlockNode, elseIfBlocks?: ElseIfNode[], elseBlock?: BlockNode | undefined) {
-        this.test = test
-        this.ifBlock = ifBlock
-        this.elseIfBlocks = elseIfBlocks
+    constructor(ifBranches: IfBranch[], elseBlock?: BlockNode | undefined) {
+        this.ifBranches = ifBranches
         this.elseBlock = elseBlock
     }
 }
@@ -314,18 +331,6 @@ class CallNode {
     constructor(expr: Expr, params: Expr[]) {
         this.expr = expr
         this.params = params
-    }
-}
-
-class AssignNode {
-    name: string
-    value: Expr
-    isConst: boolean = false
-
-    constructor(name: string, value: Expr, isConst: boolean = false) {
-        this.name = name
-        this.value = value
-        this.isConst = isConst
     }
 }
 
@@ -391,8 +396,50 @@ class ArrayNode {
     }
 }
 
-type Expr = boolean | number | string | NameNode | CompareNode | OperateNode | FunctionNode | CallNode | ArrayNode
-type Statement = Expr | IfNode | WhileNode | AssignNode | ReturnNode | ModuleNode | BlockNode
+class IndexNode {
+    object: Expr
+    index: Expr
+
+    constructor(object: Expr, index: Expr) {
+        this.object = object
+        this.index = index
+    }
+}
+
+class MemberNode {
+    object: Expr
+    name: string
+
+    constructor(object: Expr, name: string) {
+        this.object = object
+        this.name = name
+    }
+}
+
+class DeclareNode {
+    name: string
+    value: Expr
+    isConst: boolean = false
+
+    constructor(name: string, value: Expr, isConst: boolean = false) {
+        this.name = name
+        this.value = value
+        this.isConst = isConst
+    }
+}
+
+class AssignNode {
+    target: NameNode | MemberNode | IndexNode
+    value: Expr
+
+    constructor(target: NameNode | MemberNode | IndexNode, value: Expr) {
+        this.target = target
+        this.value = value
+    }
+}
+
+type Expr = boolean | null | number | string | NameNode | CompareNode | OperateNode | FunctionNode | CallNode | ArrayNode | Function | IndexNode | Object
+type Statement = Expr | IfNode | WhileNode | AssignNode | DeclareNode | ReturnNode | ModuleNode | BlockNode
 type Ast = Expr | Statement
 
 class Parser {
@@ -490,7 +537,7 @@ class Parser {
         let statements: Statement[] = []
         while (this.hasToken()) {
             let statement = this.parseStatement()
-            console.log('-------statement', statement)
+            // console.log('-------statement', statement)
 
             statements.push(statement)
         }
@@ -505,7 +552,7 @@ class Parser {
             let kt = token.keywordType
             // const a = 1
             if (kt == KeywordType.const || kt == KeywordType.var) {
-                return this.parseAssign()
+                return this.parseDeclare()
             }
             // if (true) {}
             if (kt == KeywordType.if) {
@@ -527,14 +574,14 @@ class Parser {
             return this.parseBlock()
         }
 
-        return this.parseExpr()
+        return this.parseAssign()
     }
 
     parseReturn() {
         this.ensureKeywordType(KeywordType.return)
         let expr = this.parseExpr()
-        console.log('-------return', expr)
-        
+        // console.log('-------return', expr)
+
         return expr
     }
 
@@ -551,7 +598,7 @@ class Parser {
             }
 
             let statement = this.parseStatement()
-            console.log('-------block statement', statement)
+            // console.log('-------block statement', statement)
             statements.push(statement)
         }
 
@@ -570,7 +617,7 @@ class Parser {
         let test = this.parseIfTest()
         let ifBlock = this.parseBlock()
 
-        let elseIfNodes: ElseIfNode[] = []
+        let ifBranches: IfBranch[] = [new IfBranch(test, ifBlock)]
         let elseBlock: BlockNode | undefined = undefined
 
         while (true) {
@@ -582,7 +629,7 @@ class Parser {
                     this.readToken()
                     let test = this.parseIfTest()
                     let block = this.parseBlock()
-                    elseIfNodes.push(new ElseIfNode(test, block))
+                    ifBranches.push(new IfBranch(test, block))
                 } else {
                     elseBlock = this.parseBlock()
                     break
@@ -592,21 +639,41 @@ class Parser {
             }
         }
 
-        return new IfNode(test, ifBlock, elseIfNodes, elseBlock)
+        return new IfNode(ifBranches, elseBlock)
     }
 
     parseWhile() {
         throw new Error("not implement");
     }
 
+    // a = 2
+    // o.name = 'ss'
     parseAssign() {
+        let expr = this.parseExpr()
+        // console.log('-------parse assign', expr)
+        let next = this.peekToken()
+        if (next instanceof OperatorToken && next.operatorType == OperatorType.assign) {
+            if (expr instanceof NameNode || expr instanceof MemberNode || expr instanceof IndexNode) {
+                this.readToken()
+                let value = this.parseExpr()
+                return new AssignNode(expr, value)
+            } else {
+                throw new Error("Invalid Assign Target");
+
+            }
+        }
+        return expr
+    }
+
+    // const a = 1
+    parseDeclare() {
         let keyword = this.readKeywordToken()
         let isConst = keyword.keywordType == KeywordType.const ? true : false
 
         let name = this.readNameToken().value
         this.ensureOperatorType(OperatorType.assign)
         let value = this.parseExpr()
-        return new AssignNode(name, value, isConst)
+        return new DeclareNode(name, value, isConst)
     }
 
     parseExpr(): Expr {
@@ -691,23 +758,63 @@ class Parser {
     // log(), a[1], obj.name
     parseCall() {
         let expr = this.parsePrimary()
-        let next = this.peekToken()
-        if (!next) {
-            return expr
+
+        while (true) {
+            let next = this.peekToken()
+            // console.log('-------parse call', next)
+            if (next === undefined) {
+                break
+            }
+            // 函数调用, f()
+            if (next.type == TokenType.roundLeft) {
+                this.readToken()
+                let params: Expr[] = []
+                while (true) {
+                    let token = this.peekToken()
+                    if (token.type == TokenType.roundRight) {
+                        this.readToken()
+                        break
+                    }
+
+                    let param = this.parseExpr()
+                    params.push(param)
+
+                    let tail = this.peekToken()
+                    if (tail.type == TokenType.comma) {
+                        this.readToken()
+                    } else if (tail.type == TokenType.roundRight) {
+                        this.readToken()
+                        break
+                    } else {
+                        throw new Error("Invalid Call");
+                    }
+                }
+
+                expr = new CallNode(expr, params)
+
+            }
+            // 对象索引, a[1]
+            else if (next.type == TokenType.bracketLeft) {
+                this.readToken()
+                let index = this.parseExpr()
+                // console.log('-------index', index)
+                if (typeof index == 'string' || typeof index == 'number' || index instanceof OperateNode || index instanceof NameNode) {
+                    this.ensureTokenType(TokenType.bracketRight)
+                    expr = new IndexNode(expr, index)
+                } else {
+                    throw new Error(`Invalid Index Syntax: ${JSON.stringify(index)}`)
+                }
+            }
+            // 对象属性访问
+            else if (next.type == TokenType.dot) {
+                this.readToken()
+                let name = this.readNameToken().value
+                expr = new MemberNode(expr, name)
+            } else {
+                break
+            }
         }
 
-        // 函数调用
-        if (next.type == TokenType.roundLeft) {
-
-        }
-
-        if (next.type == TokenType.braceRight) {
-
-        }
-
-        if (next.type == TokenType.dot) {
-
-        }
 
         return expr
     }
@@ -715,6 +822,19 @@ class Parser {
     parsePrimary() {
         let token = this.peekToken()
         let type = token.type
+        if (token instanceof KeywordToken) {
+            this.readToken()
+            let keyword = token.keywordType
+            if (keyword == KeywordType.true) {
+                return true
+            }
+            if (keyword == KeywordType.false) {
+                return false
+            }
+            if (keyword == KeywordType.null) {
+                return null
+            }
+        }
         if (type == TokenType.number) {
             return this.readToken().value
         }
@@ -727,8 +847,8 @@ class Parser {
         if (type == TokenType.bracketLeft) {
             return this.parseArray()
         }
-
-        throw new Error(`Invalid primary expr: ${type}`);
+        console.log('-------Invalid Primary Expr:', token)
+        throw new Error(`Invalid primary expr: ${token}`);
     }
 
     parseArray() {
@@ -795,37 +915,195 @@ const OperatorActions: { [key: string]: (a: any, b: any) => any } = {
     '%': (a: any, b: any) => a % b,
 }
 
-const glEval = function (ast: Ast, env: { [key: string]: Expr }) {
+class Env {
+    state: { [key: string]: Expr } = {}
+    parent?: Env
+    constructor(parent?: Env) {
+        this.registerBuiltin()
+        this.parent = parent
+    }
+
+    registerBuiltin() {
+        this.state = {
+            log: function (...args) {
+                console.log('[LOG]', ...args)
+            },
+            document: document
+        }
+    }
+
+    get(name: string) {
+        let o: Env | undefined = this
+        while (o !== undefined) {
+            if (o.include(name)) {
+                return o.state[name]
+            } else {
+                o = this.parent
+            }
+        }
+        return undefined
+    }
+
+    set(name: string, value: Expr) {
+        if (value == undefined) {
+            value = null
+        }
+        let o: Env | undefined = this
+        while (o !== undefined) {
+            if (o.include(name)) {
+                o.state[name] = value
+            } else {
+                o = this.parent
+            }
+        }
+    }
+
+    declare(name: string, value: Expr) {
+        if (value == undefined) {
+            value = null
+        }
+        this.state[name] = value
+    }
+
+    include(name: string) {
+        return this.state.hasOwnProperty(name)
+    }
+}
+
+const glEval = function (ast: Ast, env: Env) {
     if (typeof ast == 'number') {
         return ast
     } else if (typeof ast == 'string') {
         return ast
     } else if (typeof ast == 'boolean') {
         return ast
-    } else if (ast instanceof AssignNode) {
+    } else if (ast == null || ast == undefined) {
+        return null
+    } else if (ast instanceof NameNode) {
         let name = ast.name
+        let value = env.get(name)
+        if (value === undefined) {
+            throw new Error(`Undefined variable: ${name}`);
+        }
+        // console.log('-------eval variable', env.state)
+        return value
+    } else if (ast instanceof Function) {
+        return ast
+    } else if (ast instanceof ModuleNode) {
+        for (const s of ast.statements) {
+            glEval(s, env)
+        }
+    } else if (ast instanceof ArrayNode) {
+        return ast.elements.map((e) => glEval(e, env))
+    } else if (ast instanceof IndexNode) {
+        let obj = glEval(ast.object, env)
+        let i = glEval(ast.index, env)
+        return obj[i]
+    } else if (ast instanceof MemberNode) {
+        let obj = glEval(ast.object, env)
+        let v = obj[ast.name]
+        if (v instanceof Function) {
+            console.log('-------bind this', v, obj)
+            v = v.bind(obj)
+        }
+        return v
+    } else if (ast instanceof DeclareNode) {
+        let name = ast.name
+        if (env.include(name)) {
+            throw new Error(`Variable already declared: ${name}`);
+        }
         let value = glEval(ast.value, env)
-        log(`assign: ${name} = ${value}`)
-        env[name] = value
+        // console.log('-------assign', name, '=', value)
+        env.declare(name, value)
+    } else if (ast instanceof AssignNode) {
+        let target = ast.target
+        if (target instanceof NameNode) {
+            let name = target.name
+            let value = glEval(ast.value, env)
+            // console.log('-------assign', name, '=', value)
+            env.set(name, value)
+        } else if (target instanceof IndexNode) {
+            let obj = glEval(target.object, env)
+            let i = glEval(target.index, env)
+            obj[i] = glEval(ast.value, env)
+        } else if (target instanceof MemberNode) {
+            let obj = glEval(target.object, env)
+            let name = target.name
+            obj[name] = glEval(ast.value, env)
+        } else {
+            console.log('-------assign to target', target)
+            throw new Error("Invalid Assign Target");
+        }
+
     } else if (ast instanceof FunctionNode) {
         let name = ast.name
         if (name) {
-            env[name] = ast
+            env.set(name, ast)
         }
         return ast
+    } else if (ast instanceof CallNode) {
+        let f = glEval(ast.expr, env)
+        // console.log('-------eval call', f)
+        // 绑定函数参数到函数作用域
+        if (f instanceof FunctionNode) {
+            let args = f.args
+            let params = ast.params
+
+            let newEnv = new Env()
+            for (let i = 0; i < args.length; i++) {
+                let arg = args[i]
+                let param = glEval(params[i], env)
+                // console.log('-------arg param', arg, param)
+                newEnv.declare(arg, param)
+            }
+            // console.log('-------eval call env', newEnv)
+            return glEval(f.body, newEnv)
+        } else if (f instanceof Function) {
+            let params = ast.params.map((e) => glEval(e, env))
+            // console.log('-------params', params)
+            return f(...params)
+        }
+        throw new Error(`Not function: ${f}`);
+    } else if (ast instanceof BlockNode) {
+        let r
+        for (const s of ast.statements) {
+            r = glEval(s, env)
+        }
+        return r
+    } else if (ast instanceof ReturnNode) {
+        return glEval(ast.expr, env)
     } else if (ast instanceof OperateNode) {
         let left: any = glEval(ast.left, env)
         let right: any = glEval(ast.right, env)
         let action = OperatorActions[ast.op]
         return action(left, right)
-    } else if (ast instanceof ModuleNode) {
-        for (const s of ast.statements) {
-            glEval(s, env)
+    } else if (ast instanceof IfNode) {
+        let success = false
+        for (const b of ast.ifBranches) {
+            let r = glEval(b.test, env)
+            if (typeof r != 'boolean') {
+                throw new Error(`If expected a boolean value, get ${r}`);
+            }
+            if (r) {
+                let blockEnv = new Env(env)
+                glEval(b.block, blockEnv)
+                success = true
+                break
+            }
         }
+        if (!success && ast.elseBlock) {
+            let blockEnv = new Env(env)
+            glEval(ast.elseBlock, blockEnv)
+        }
+    }
+    else {
+        console.log('-------invalid ast', ast)
+        throw new Error(`Invalid AST`);
+
     }
 }
 
 
 export {
-    Tokenizer, Parser, glEval
+    Tokenizer, Parser, glEval, Env
 }

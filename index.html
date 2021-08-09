@@ -1,16 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite App</title>
-  </head>
-  <body>
-    <div id="app">
-      <div id="editor" style="width: 800px; height: 600px; border: 1px solid grey"></div>
-    </div>
-    <script type="module" src="/src/gl.ts"></script>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vite App</title>
+</head>
+
+<body>
+  <div id="app">
+    <div id="editor" style="width: 600px; height: 800px; border: 1px solid grey"></div>
+    <textarea id="console">
+Hello, Axe
+    </textarea>
+  </div>
+
+  <script type="module" src="/src/gl.ts"></script>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
 </html>
