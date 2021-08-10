@@ -147,6 +147,7 @@ function getkeywordType(s: string): KeywordType | null {
         'else': KeywordType.else,
         'while': KeywordType.while,
         'const': KeywordType.const,
+        'con': KeywordType.const,
         'var': KeywordType.var,
         'function': KeywordType.function,
         'return': KeywordType.return,
