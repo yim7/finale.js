@@ -19,31 +19,48 @@ const init_editor = function () {
   container!.innerHTML = ''
   let editor = monaco.editor.create(container!, {
     value: `
-const plus = function (n) {
-  return n + 1
-}
 
-const __main = function () {
-  var a = 1 + 2 * 3 + 8 / 2
-  log('a', a)
-
-  var list = [1, 2, 3, 4]
-  log('list', list)
-  list.push(5, 6, 7)
-  list[1] = 9
-  log('list', list)
-  
-  const e = function (s) {
-    return document.querySelector(s)
+const closure = function() {
+  var n = 0
+  return function() {
+    log('n', n)
+    n = 1
   }
-  
-  const es = function (s) {
-    return document.querySelectorAll(s)
-  }
-
-  var console = e('#console')
-  log('select', console)
 }
+const __main = function(){
+  var f = closure()
+  f()
+}
+// const plus = function (n) {
+//   return n + 1
+// }
+
+// const __main = function () {
+//   var a = 1 + 2 * 3 + 8 / 2
+//   log('a', a)
+
+//   var list = [1, 2, 3, 4]
+//   log('list', list)
+//   list.push(5, 6, 7)
+//   list[1] = 9
+//   log('list', list)
+  
+//   const e = function (s) {
+//     return document.querySelector(s)
+//   }
+  
+//   const es = function (s) {
+//     return document.querySelectorAll(s)
+//   }
+
+//   var console = e('#console')
+//   log('select', console)
+//   console.style.color = 'red'
+//   console.value = 'hello, gua'
+
+//   var o = {a:'1', b: 3}
+//   log('obj', o, o['b'])
+// }
   
   __main()
   

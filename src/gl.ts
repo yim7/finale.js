@@ -319,6 +319,7 @@ class FunctionNode {
     name: string | undefined
     args: string[]
     body: BlockNode
+    env: Env | undefined = undefined
     constructor(name: string | undefined, args: string[], body: BlockNode) {
         this.name = name
         this.args = args
@@ -397,6 +398,14 @@ class ArrayNode {
     }
 }
 
+class ObjectNode {
+    obj: Object
+
+    constructor(obj: Object) {
+        this.obj = obj
+    }
+}
+
 class IndexNode {
     object: Expr
     index: Expr
@@ -439,7 +448,7 @@ class AssignNode {
     }
 }
 
-type Expr = boolean | null | number | string | NameNode | CompareNode | OperateNode | FunctionNode | CallNode | ArrayNode | Function | IndexNode | Object
+type Expr = boolean | null | number | string | NameNode | CompareNode | OperateNode | FunctionNode | CallNode | Function | IndexNode | Object | Array<Expr> | ObjectNode | ArrayNode
 type Statement = Expr | IfNode | WhileNode | AssignNode | DeclareNode | ReturnNode | ModuleNode | BlockNode
 type Ast = Expr | Statement
 
@@ -820,7 +829,7 @@ class Parser {
         return expr
     }
 
-    parsePrimary() {
+    parsePrimary(): Expr {
         let token = this.peekToken()
         let type = token.type
         if (token instanceof KeywordToken) {
@@ -848,8 +857,43 @@ class Parser {
         if (type == TokenType.bracketLeft) {
             return this.parseArray()
         }
+        if (type == TokenType.braceLeft) {
+            return this.parseObject()
+        }
         console.log('-------Invalid Primary Expr:', token)
         throw new Error(`Invalid primary expr: ${token}`);
+    }
+
+    parseObject() {
+        this.ensureTokenType(TokenType.braceLeft)
+        var o = {}
+        while (true) {
+            let t = this.peekToken()
+            if (t.type == TokenType.braceRight) {
+                this.readToken()
+                break
+            }
+            let token = this.peekToken()
+            if (token.type != TokenType.name && token.type != TokenType.keyword) {
+                throw new Error("Invalid Object Key")
+            }
+            let key = this.readToken().value
+            this.ensureTokenType(TokenType.colon)
+            let value = this.parseExpr()
+            o[key] = value
+
+            let next = this.peekToken()
+            if (next.type == TokenType.comma) {
+                this.readToken()
+            } else if (next.type == TokenType.braceRight) {
+                this.readToken()
+                break
+            } else {
+                throw new Error("Invalid Object Syntax");
+            }
+        }
+
+        return new ObjectNode(o)
     }
 
     parseArray() {
@@ -939,6 +983,7 @@ class Env {
             if (o.include(name)) {
                 return o.state[name]
             } else {
+                console.log('-------find in parent', this.parent?.state)
                 o = this.parent
             }
         }
@@ -954,6 +999,7 @@ class Env {
             if (o.include(name)) {
                 o.state[name] = value
             } else {
+                console.log('-------find in parent', this.parent?.state)
                 o = this.parent
             }
         }
@@ -996,6 +1042,12 @@ const glEval = function (ast: Ast, env: Env) {
         }
     } else if (ast instanceof ArrayNode) {
         return ast.elements.map((e) => glEval(e, env))
+    } else if (ast instanceof ObjectNode) {
+        let o = {}
+        for (const [k, v] of Object.entries(ast.obj)) {
+            o[k] = glEval(v, env)
+        }
+        return o
     } else if (ast instanceof IndexNode) {
         let obj = glEval(ast.object, env)
         let i = glEval(ast.index, env)
@@ -1041,6 +1093,7 @@ const glEval = function (ast: Ast, env: Env) {
         if (name) {
             env.set(name, ast)
         }
+        ast.env = env
         return ast
     } else if (ast instanceof CallNode) {
         let f = glEval(ast.expr, env)
@@ -1050,7 +1103,7 @@ const glEval = function (ast: Ast, env: Env) {
             let args = f.args
             let params = ast.params
 
-            let newEnv = new Env()
+            let newEnv = new Env(f.env)
             for (let i = 0; i < args.length; i++) {
                 let arg = args[i]
                 let param = glEval(params[i], env)
