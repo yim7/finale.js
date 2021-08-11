@@ -88,7 +88,7 @@ class StringToken extends Token {
     declare readonly value: string
 
     constructor(value: string, start: number, length: number) {
-        super(value, TokenType.number, start, length)
+        super(value, TokenType.string, start, length)
     }
 }
 
@@ -874,7 +874,8 @@ class Parser {
                 break
             }
             let token = this.peekToken()
-            if (token.type != TokenType.name && token.type != TokenType.keyword) {
+            if (token.type != TokenType.name && token.type != TokenType.keyword && token.type != TokenType.string) {
+                console.log('-------obj key', token)
                 throw new Error("Invalid Object Key")
             }
             let key = this.readToken().value
@@ -983,7 +984,7 @@ class Env {
             if (o.include(name)) {
                 return o.state[name]
             } else {
-                console.log('-------find in parent', this.parent?.state)
+                // console.log('-------find in parent', this.parent?.state)
                 o = this.parent
             }
         }
@@ -998,8 +999,9 @@ class Env {
         while (o !== undefined) {
             if (o.include(name)) {
                 o.state[name] = value
+                return
             } else {
-                console.log('-------find in parent', this.parent?.state)
+                // console.log('-------find in parent', this.parent?.state)
                 o = this.parent
             }
         }
