@@ -2,7 +2,7 @@ import * as monaco from 'monaco-editor'
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 
-import { Tokenizer, Parser, glEval, Env } from "./gl";
+import { glEval } from "./gl";
 
 window.MonacoEnvironment = {
   getWorker(_, label) {
@@ -66,15 +66,7 @@ con __main = function(){
     // @param editor The editor instance is passed in as a convinience
     run: (ed) => {
       let code = editor.getModel()?.getValue()!
-      let tokenizer = new Tokenizer(code)
-
-      let parser = new Parser(tokenizer.tokenize())
-      let ast = parser.parse()
-      console.log('-------ast', ast)
-
-      let env = new Env()
-      glEval(ast, env)
-      // console.log('-------finally env', env)
+      glEval(code)
     }
   })
 
