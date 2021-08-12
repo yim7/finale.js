@@ -79,7 +79,7 @@ class StringToken extends Token {
     declare readonly value: string
 
     constructor(value: string, start: number, length: number) {
-        super(value, TokenType.number, start, length)
+        super(value, TokenType.string, start, length)
     }
 }
 
@@ -278,6 +278,5 @@ class Tokenizer {
         }
     }
 }
-
 
 export { TokenType, KeywordType, OperatorType, Token, KeywordToken, OperatorToken, NameToken, Tokenizer, }

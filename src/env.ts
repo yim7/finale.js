@@ -22,11 +22,11 @@ class Env {
             if (o.include(name)) {
                 return o.state[name]
             } else {
-                console.log('-------find in parent', this.parent?.state)
+                // console.log('-------find in parent', this.parent?.state)
                 o = this.parent
             }
         }
-        return undefined
+        throw new Error("Variable not declared");
     }
 
     set(name: string, value: Expr) {
@@ -37,11 +37,13 @@ class Env {
         while (o !== undefined) {
             if (o.include(name)) {
                 o.state[name] = value
+                return
             } else {
-                console.log('-------find in parent', this.parent?.state)
+                // console.log('-------find in parent', this.parent?.state)
                 o = this.parent
             }
         }
+        throw new Error("Variable not declared");
     }
 
     declare(name: string, value: Expr) {

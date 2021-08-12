@@ -1,10 +1,6 @@
 import { Token, TokenType, KeywordToken, KeywordType, NameToken, OperatorToken, OperatorType } from "./tokenizer"
 import { Env } from "./env"
 
-type Expr = boolean | null | number | string | NameNode | CompareNode | OperateNode | FunctionNode | CallNode | Function | IndexNode | Object | Array<Expr> | ObjectNode | ArrayNode
-type Statement = Expr | IfNode | WhileNode | AssignNode | DeclareNode | ReturnNode | ModuleNode | BlockNode
-type Ast = Expr | Statement
-
 class IfBranch {
     test: Expr
     block: BlockNode
@@ -164,6 +160,11 @@ class AssignNode {
         this.value = value
     }
 }
+
+type Expr = boolean | null | number | string | NameNode | CompareNode | OperateNode | FunctionNode | CallNode | Function | IndexNode | Object | Array<Expr> | ObjectNode | ArrayNode
+type Statement = Expr | IfNode | WhileNode | AssignNode | DeclareNode | ReturnNode | ModuleNode | BlockNode
+type Ast = Expr | Statement
+
 class Parser {
     tokens: Token[]
     index: number = 0
@@ -586,7 +587,8 @@ class Parser {
                 break
             }
             let token = this.peekToken()
-            if (token.type != TokenType.name && token.type != TokenType.keyword) {
+            if (token.type != TokenType.name && token.type != TokenType.keyword && token.type != TokenType.string) {
+                console.log('-------obj key', token)
                 throw new Error("Invalid Object Key")
             }
             let key = this.readToken().value

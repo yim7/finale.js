@@ -3,6 +3,7 @@ import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 
 import { glEval } from "./gl";
+import { infer } from "./infer";
 
 window.MonacoEnvironment = {
   getWorker(_, label) {
@@ -19,30 +20,19 @@ const init_editor = function () {
   container!.innerHTML = ''
   let editor = monaco.editor.create(container!, {
     value: `
-con closure = function() {
-  var n = 0
-  return function() {
-    log('n', n)
-    n = n + 1
-  }
+var a = 1
+var s = 'hello'
+
+con f = function(v) {
+    return v
 }
 
-con __main = function(){
-  var f = closure()
-  f()
-  f()
-  f()
-
-  var o = {
-    'name': 'abc',
-    'type': 1
-  }
-
-  log(o.name)
+con plus = function(n) {
+  return n + 1
 }
-  __main()
-      
-    
+
+f(a)
+f(s)    
 `
   })
 
@@ -66,7 +56,8 @@ con __main = function(){
     // @param editor The editor instance is passed in as a convinience
     run: (ed) => {
       let code = editor.getModel()?.getValue()!
-      glEval(code)
+      // glEval(code)
+      infer(code)
     }
   })
 
