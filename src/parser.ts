@@ -305,7 +305,7 @@ class Parser {
         let expr = this.parseExpr()
         // console.log('-------return', expr)
 
-        return expr
+        return new ReturnNode(expr)
     }
 
     parseBlock() {
