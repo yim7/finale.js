@@ -4,7 +4,7 @@ import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 
 import { glEval } from "./gl";
 import { infer } from "./infer";
-import { format } from "./format";
+import { Formatter } from "./format";
 
 window.MonacoEnvironment = {
   getWorker(_, label) {
@@ -21,18 +21,30 @@ const init_editor = function () {
   container!.innerHTML = ''
   let editor = monaco.editor.create(container!, {
     value: `
-var n = 1
+  var array = [1,2,3,4,[7,7,7]]
+  var o = {a: 1,b: {c: 2,d: 3,},}
+    con f1 = function (a, b, c) {
+return function () {log(a, b, c)}
+  
+  }
+con f2 = function(n) {
+      var grade1=8
+      if (grade1<7) {log('小学生')} 
+      else if (grade1 < 10){log('初中生')} 
+      else{log('高中生')}
+  }
+  con demoString = function () {
+      log('判断相等')
+      log('good'=='good')
+      log('good' != 'bad')
+      log('very' + 'good')
 
-con plus = function(n) {return n + 1}
-con plusN=function(n){
-con inner=function(x){
-log(n,'+',x)
-return x + n
-}
-return inner
-}
-const plus2 = plusN(2,)
-log(plus2(3,))
+
+
+
+  }
+  
+  
 `
   })
 
@@ -81,10 +93,17 @@ log(plus2(3,))
     run: (ed) => {
       let code = editor.getModel()?.getValue()!
       // glEval(code)
-      let formatted = format(code)
-      console.log('-------format')
-      console.log(formatted)
-      editor.getModel()?.setValue(formatted)
+      try {
+        let formatter = new Formatter(code)
+        console.log('-------format')
+        let output = formatter.format()
+        console.log(output)
+        editor.getModel()?.setValue(output)
+      } catch (error) {
+        console.log('-------format error', error)
+      }
+
+
     }
   })
   return editor

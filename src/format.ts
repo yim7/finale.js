@@ -1,4 +1,4 @@
-import { AssignNode, Ast, BlockNode, CallNode, DeclareNode, FunctionNode, ModuleNode, NameNode, OperateNode, Parser, ReturnNode } from "./parser";
+import { CompareNode, Ast, BlockNode, CallNode, DeclareNode, FunctionNode, ModuleNode, NameNode, OperateNode, Parser, ReturnNode, IfNode, AssignNode, MemberNode, IndexNode, ArrayNode, ObjectNode } from "./parser";
 import { Tokenizer } from "./tokenizer";
 
 class Line {
@@ -39,90 +39,201 @@ class Formatter {
         this.code = code
     }
 
-    write(s){
+    write(s) {
         this.output += s
     }
-    _format(ast: Ast) {
-        if (typeof ast == 'number') {
-            let s = ast.toString()
-            this.output
 
+    _format(ast: Ast) {
+        console.log('-------ast type', typeof ast)
+        if (typeof ast == 'number') {
+            console.log('-------number', ast)
+            let s = ast.toString()
+            this.write(s)
+            return
         }
 
         if (typeof ast == 'string') {
-            return '\'' + ast + '\''
+            let s = '\'' + ast + '\''
+            this.write(s)
+            return
+        }
+
+        if (ast instanceof ArrayNode) {
+            this.write('[')
+            for (const e of ast.elements) {
+                this._format(e)
+                this.write(', ')
+            }
+            this.write(']')
+            return
+        }
+
+        if (ast instanceof ObjectNode) {
+            this.write('{\n')
+            indentLevel += 1
+            let space = indent(indentLevel)
+            for (const [k, v] of Object.entries(ast.obj)) {
+                this.write(space)
+                this.write(k)
+                this.write(': ')
+                this._format(v)
+                this.write(',\n')
+            }
+            indentLevel -= 1
+            this.write(indent(indentLevel))
+            this.write('}')
+            // indentLevel += 1
+            // let space = indent(indentLevel)
+            // for (const e of ast.statements) {
+            //     this.write(space)
+            //     this._format(e)
+            //     this.write('\n')
+            // }
+
+            // indentLevel -= 1
+            // this.write(indent(indentLevel))
+            // this.write('}')
+            
+            return
         }
 
         if (ast instanceof NameNode) {
-            return ast.name
+            let s = ast.name
+            this.write(s)
+            return
         }
 
         if (ast instanceof DeclareNode) {
             let name = ast.name
-            let value = this._format(ast.value)
-            let prefix = ast.isConst ? 'con' : 'var'
-            let s = prefix + ' ' + name + ' = ' + value
-            return s
 
+            let prefix = ast.isConst ? 'con' : 'var'
+            let s = prefix + ' ' + name + ' = '
+            this.write(s)
+            this._format(ast.value)
+            return
+        }
+
+        if (ast instanceof AssignNode) {
+            let target = ast.target
+            if (target instanceof NameNode) {
+                this.write(target.name)
+                this.write(' = ')
+                this._format(ast.value)
+            }
+            return
+        }
+
+        if (ast instanceof MemberNode) {
+            this._format(ast.object)
+            this.write('.')
+            this.write(ast.name)
+            return
+        }
+
+        if (ast instanceof IndexNode) {
+            this._format(ast.object)
+            this.write('[')
+            this._format(ast.index)
+            this.write(']')
+            return
         }
 
         if (ast instanceof ModuleNode) {
-            let es: string[] = []
             for (const statement of ast.statements) {
-                let line = this._format(statement)
-                es.push(line)
+                this._format(statement)
+                this.write('\n')
             }
-            return es.join('\n')
+            return
         }
 
         if (ast instanceof FunctionNode) {
             let args = ast.args.join(', ')
-            let body = this._format(ast.body)
             let s = 'function (' + args + ') '
-            // console.log('------------------------body', body);
-
-            return s + body + '\n\n'
+            this.write(s)
+            this._format(ast.body)
+            this.write('\n')
+            return
         }
 
         if (ast instanceof CallNode) {
-            let args = ast.params.map(p => this._format(p)).join(', ')
-            let call = this._format(ast.expr)
-            let s = call + '(' + args + ')'
-            return s
+            this._format(ast.expr)
+            this.write('(')
+            let params = ast.params
+            for (let i = 0; i < params.length; i++) {
+                const param = params[i]
+                this._format(param)
+                if (i != params.length - 1) {
+                    this.write(', ')
+                }
+
+            }
+            this.write(')')
+            return
+        }
+
+        if (ast instanceof IfNode) {
+            let [ifBranch, ...elseIfBranch] = ast.ifBranches
+
+            this.write('if (')
+            this._format(ifBranch.test)
+            this.write(') ')
+            this._format(ifBranch.block)
+
+            for (const elseIf of elseIfBranch) {
+                this.write(' else if (')
+                this._format(elseIf.test)
+                this.write(') ')
+                this._format(elseIf.block)
+            }
+
+            if (ast.elseBlock) {
+                this.write(' else ')
+                this._format(ast.elseBlock)
+            }
+            return
         }
 
         if (ast instanceof BlockNode) {
+            this.write('{\n')
+
             indentLevel += 1
-            let es: any = []
             let space = indent(indentLevel)
-            // console.log('-------block indent', `<${space}>`)
             for (const e of ast.statements) {
-                let s = space + this._format(e)
-                es.push(s)
+                this.write(space)
+                this._format(e)
+                this.write('\n')
             }
 
             indentLevel -= 1
-            return '{\n' + es.join('\n') + '\n' + indent(indentLevel) + '}'
+            this.write(indent(indentLevel))
+            this.write('}')
+            return
         }
 
         if (ast instanceof ReturnNode) {
-            let e = this._format(ast.expr)
-            let s = 'return ' + e
-            // console.log('-------return', s)
-            return s
+            this.write('return ')
+            this._format(ast.expr)
+            return
         }
 
         if (ast instanceof OperateNode) {
-            let left = this._format(ast.left)
-            let right = this._format(ast.right)
-            let op = ast.op
-            let s = left + op + right
-            return s
+            this._format(ast.left)
+            this.write(' ' + ast.op + ' ')
+            this._format(ast.right)
+            return
+        }
+
+        if (ast instanceof CompareNode) {
+            this._format(ast.left)
+            this.write(' ' + ast.op + ' ')
+            this._format(ast.right)
+            return
         }
 
         console.log('-------Invalid Ast', ast)
         throw new Error("Invalid Ast")
     }
+
     format() {
         let tokenizer = new Tokenizer(this.code)
         let tokens = tokenizer.tokenize()
@@ -136,4 +247,4 @@ class Formatter {
 }
 
 
-export { format }
+export { Formatter }

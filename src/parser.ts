@@ -331,6 +331,7 @@ class Parser {
     parseIfTest() {
         this.ensureTokenType(TokenType.roundLeft)
         let test = this.parseExpr()
+        console.log('-------if test', test)
         this.ensureTokenType(TokenType.roundRight)
         return test
     }
@@ -408,7 +409,31 @@ class Parser {
             }
         }
 
-        return this.parsePlusMinus()
+        return this.parseExprOrCompare()
+    }
+
+    // 1 (> 2)
+    parseExprOrCompare() {
+        let expr = this.parsePlusMinus()
+        let token = this.peekToken()
+        // console.log('-------parse +-1', token.value)
+        if (token instanceof OperatorToken) {
+            // console.log('-------parse +-2', token.value) 
+            let op = token.operatorType
+            if (op == OperatorType.great
+                || op == OperatorType.greatOrEqual
+                || op == OperatorType.less
+                || op == OperatorType.lessOrEqual
+                || op == OperatorType.equal
+                || op == OperatorType.notEqual
+            ) {
+                this.readToken()
+                let right = this.parsePlusMinus()
+                expr = new CompareNode(expr, op, right)
+            }
+        }
+
+        return expr
     }
 
     // 1 + (2 * 3) + 2
@@ -444,7 +469,7 @@ class Parser {
             // console.log('-------parse */1', token) 
             if (token instanceof OperatorToken) {
                 let op = token.operatorType
-                if (op == OperatorType.multiply || op == OperatorType.divide) {
+                if (op == OperatorType.multiply || op == OperatorType.divide || op == OperatorType.mod) {
                     // console.log('-------parse */2', op) 
                     this.readToken()
                     let right = this.parseSigned()
@@ -662,4 +687,4 @@ class Parser {
 
 
 
-export { Expr, Statement, Ast, IfNode, NameNode, WhileNode, FunctionNode, CallNode, ReturnNode, BlockNode, ModuleNode, ArrayNode, ObjectNode, IndexNode, MemberNode, DeclareNode, OperateNode, AssignNode, Parser }
+export { Expr, Statement, Ast, IfNode, NameNode, WhileNode, FunctionNode, CallNode, ReturnNode, BlockNode, ModuleNode, ArrayNode, ObjectNode, IndexNode, MemberNode, DeclareNode, OperateNode, CompareNode, AssignNode, Parser }
